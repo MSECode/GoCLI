@@ -6,6 +6,16 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+    "time"    
+)
+
+const (
+    FILE_EXT_TEXT = ".txt"
+    DATA_PATH = "tmp/data"
+    NOTE_PATH = DATA_PATH + "/notes"
+    TODO_PATH = DATA_PATH + "/todos"
+    LIST_PATH = DATA_PATH + "/lists"
+    NOTE_TAG = "NOTE_"
 )
 
 var (
@@ -15,7 +25,7 @@ var (
 )
 
 func createEnv() {
-	dataDir = "tmp/data/notes"
+	dataDir = NOTE_PATH
 	if _, err := os.Stat(dataDir); os.IsNotExist(err) {
 		os.MkdirAll(dataDir, 0755)
 		fmt.Printf("Directory %s created\n", dataDir)
@@ -37,8 +47,11 @@ func main() {
 	flag.Parse()
 	var title string
 	var body string
+    var currentTime = time.Now().Format(time.RFC3339)
 
-	file, err := os.Create(filepath.Join(dataDir, filepath.Base("note.txt")))
+    fmt.Printf("The current time is %s\n", currentTime) 
+    
+	file, err := os.Create(filepath.Join(dataDir, filepath.Base(NOTE_TAG+currentTime+FILE_EXT_TEXT)))
 	if err != nil {
 		panic(err)
 	}
@@ -66,7 +79,7 @@ func main() {
 			panic(err)
 		}
 		if _, err := buffer.WriteString(body + "\n"); err != nil {
-			panic(err)
+            panic(err)
 		}
 		if err := buffer.Flush(); err != nil {
 			panic(err)
