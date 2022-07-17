@@ -4,8 +4,10 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -18,6 +20,8 @@ const (
     NOTE_TAG  = "NOTE_"
     TODO_TAG  = "TODO_"
     LIST_TAG  = "LIST_"
+    TITLE_TAG = "TITLE"
+    ERR_WRITE_MESSAGE = "Error while writing to file %v"
 )
 
 var (
@@ -57,10 +61,101 @@ func createEnv() {
 	fmt.Println("Finish instantiating working environment...")
 }
 
-func writeTodoToFile(){
+func writeListToFile(listsDir *string, currentTime *string) {
+    var title   string
+    var body    string
+    
+    fmt.Printf("We are writing %s to path: %s\n", writeNote, *listsDir)
+    file, err := os.Create(filepath.Join(*listsDir, filepath.Base(LIST_TAG+*currentTime+FILE_EXT_TEXT)))
+    if err != nil {
+        panic(err)
+    }
+    defer file.Close()
+    
+    buffer := bufio.NewWriter(file)
+    if _, err := buffer.WriteString(TITLE_TAG + ": "); err != nil {
+        log.Fatalf(ERR_WRITE_MESSAGE, err)
+    }
+    fmt.Printf("You have chosen to write a %s. Type the title: \n", writeNote)
+    scanner := bufio.NewScanner(os.Stdin)
+    if scanner.Scan() {
+        title = scanner.Text()
+    }
+    if err := scanner.Err(); err != nil {
+        log.Fatalf("Error while scanning title %v", err)
+    }
+    if _, err := buffer.WriteString(title + "\n"); err != nil {
+        log.Fatalf(ERR_WRITE_MESSAGE, err)
+    }
+    fmt.Printf("Now type the %s elements separated by %c:\n", writeNote, ',')
+    if scanner.Scan() {
+        body = scanner.Text()
+    }
+    if err := scanner.Err(); err != nil {
+        log.Fatalf("Error while scanning the body %v", err)
+    }
+    listEl := strings.Split(body, ",")
+    for _, el := range listEl {
+        if _, err := buffer.WriteString(el + "\n"); err != nil {
+            log.Fatalf(ERR_WRITE_MESSAGE, err)
+        }
+    }
+    if err := buffer.Flush(); err != nil {
+        log.Fatalf("Error while flushing buffer %v", err)
+    }
+}
+
+func writeTodoToFile(todosDir *string, currentTime *string) {
     var title   string
     var body    string
     var dueDate string
+    var years   int
+    var months  int
+    var days    int
+
+    fmt.Printf("We are writing todo to path: %s\n", *todosDir)
+    file, err := os.Create(filepath.Join(*todosDir, filepath.Base(TODO_TAG+*currentTime+FILE_EXT_TEXT)))
+    if err != nil {
+        panic(err)
+    }
+    defer file.Close()
+
+    buffer := bufio.NewWriter(file)
+    if _, err := buffer.WriteString(TITLE_TAG + ": "); err != nil {
+        log.Fatalf(ERR_WRITE_MESSAGE, err)
+    }
+    fmt.Printf("You have chosen to write a %s. Type the title: \n", writeNote)
+    scanner := bufio.NewScanner(os.Stdin)
+    if scanner.Scan() {
+        title = scanner.Text()
+    }
+    if err := scanner.Err(); err != nil {
+        log.Fatalf("Error while scanning title %v", err)
+    }
+    if _, err := buffer.WriteString(title + "\n"); err != nil {
+        log.Fatalf(ERR_WRITE_MESSAGE, err)
+    }
+    fmt.Printf("Now type the body of the %s:\n", writeNote)
+    if scanner.Scan() {
+        body = scanner.Text()
+    }
+    if err := scanner.Err(); err != nil {
+        log.Fatalf("Error while scanning the body %v", err)
+    }
+    if _, err := buffer.WriteString(body + "\n"); err != nil {
+        log.Fatalf(ERR_WRITE_MESSAGE, err)
+    }
+    fmt.Printf("Now type in order years, months and days you need to complete the %s:\n", writeNote)
+    fmt.Scanf("%d %d %d", &years, &months, &days)
+    t, _ := time.Parse(time.RFC3339, *currentTime)
+    nt := t.AddDate(years, months, days)
+    dueDate = nt.Format(time.RFC3339)
+    if _, err := buffer.WriteString(dueDate + "\n"); err != nil {
+        log.Fatalf(ERR_WRITE_MESSAGE, err)
+    }
+    if err := buffer.Flush(); err != nil {
+        log.Fatalf("Error while flushing buffer %v", err)
+    }
 
 }
 
@@ -75,30 +170,34 @@ func writeNoteToFile(notesDir *string, currentTime *string) {
 		panic(err)
 	}
 	defer file.Close()
-	buffer := bufio.NewWriter(file)
-    fmt.Printf("You have choose to write a %s. Type the title:\n", writeNote)
+	
+    buffer := bufio.NewWriter(file)
+    if _, err := buffer.WriteString(TITLE_TAG + ": "); err != nil {
+        log.Fatalf(ERR_WRITE_MESSAGE, err)
+    }
+    fmt.Printf("You have chosen to write a %s. Type the title:\n", writeNote)
     scanner := bufio.NewScanner(os.Stdin)
     if scanner.Scan() {
         title = scanner.Text()
     }
     if err := scanner.Err(); err != nil {
-        panic(err)
+        log.Fatalf("Error while scanning title %v", err)
     }
     if _, err := buffer.WriteString(title + "\n"); err != nil {
-        panic(err)
+        log.Fatalf(ERR_WRITE_MESSAGE, err)
     }
     fmt.Printf("Now type the body of the %s:\n", writeNote)
     if scanner.Scan() {
         body = scanner.Text()
     }
     if err := scanner.Err(); err != nil {
-        panic(err)
+        log.Fatalf("Error while scanning the body %v", err)
     }
     if _, err := buffer.WriteString(body + "\n"); err != nil {
-        panic(err)
+        log.Fatalf(ERR_WRITE_MESSAGE, err)
     }
     if err := buffer.Flush(); err != nil {
-        panic(err)
+        log.Fatalf("Error while flushing buffer %v", err)
     }
 }
 
@@ -120,7 +219,9 @@ func main() {
     if writeNote == "note" { //default case
 	    writeNoteToFile(&notesDir, &currentTime)
     } else if writeNote == "todo" {
+        writeTodoToFile(&todosDir, &currentTime)
     } else if writeNote == "list" {
+        writeListToFile(&listsDir, &currentTime)
     } else if writeNote != "" {
         fmt.Println("Only the following values are allowed for -w command: [note, todo, list]")
     }
