@@ -98,7 +98,26 @@ func (r *ReadCommand) Init(args []string) error {
 }
 
 func (r *ReadCommand) Run() error {
-    fmt.Printf("You have chosen to read a %s.\n", r.readType)
+
+    if r.readType == "note" {
+
+        fmt.Printf("Reading a: %s to file: %s.\n", strings.ToUpper(r.readType), r.readFile)
+        readNoteFromFile(&notesDir, r.readFile)
+    
+    } else if r.readType == "todo" {
+
+        fmt.Printf("Reading a: %s to file: %s.\n", strings.ToUpper(r.readType), r.readFile)
+        readTodoFromFile(&todosDir, r.readFile)
+
+    } else if r.readType == "list" {
+
+        fmt.Printf("Reading a: %s to file: %s.\n", strings.ToUpper(r.readType), r.readFile)
+        readListFromFile(&listsDir, r.readFile)
+    
+    } else {
+    
+        return errors.New("Invalid option. Usage: read -t [<note>,<todo>,<list>] -f <filename>")
+    }
 
     return nil
 }
@@ -114,6 +133,57 @@ func NewReadCommand() *ReadCommand {
     return rc
 }
 
+type UpdateCommand struct {
+    fs *flag.FlagSet
+
+    updateType string
+    updateFile string
+
+}
+
+func (u *UpdateCommand) Name() string {
+    return u.fs.Name()
+}
+
+func (u *UpdateCommand) Init(args []string) error {
+    return u.fs.Parse(args)
+}
+
+func (u *UpdateCommand) Run() error {
+    
+    if u.updateType == "note" {
+
+        fmt.Printf("Updating a: %s to file: %s.\n", strings.ToUpper(u.updateType), u.updateFile)
+        updateNoteInFile(&notesDir, u.updateFile)
+    
+    } else if u.updateType == "todo" {
+
+        fmt.Printf("Updating a: %s to file: %s.\n", strings.ToUpper(u.updateType), u.updateFile)
+        updateTodoInFile(&todosDir, u.updateFile)
+
+    } else if u.updateType == "list" {
+
+        fmt.Printf("Updating a: %s to file: %s.\n", strings.ToUpper(u.updateType), u.updateFile)
+        updateListInFile(&listsDir, u.updateFile)
+    
+    } else {
+    
+        return errors.New("Invalid option. Usage: update -t [<note>,<todo>,<list>] -f <filename>")
+    }
+
+    return nil
+}
+
+func NewUpdateCommand() *UpdateCommand {
+    uc := &UpdateCommand {
+        fs : flag.NewFlagSet("update", flag.ExitOnError),
+    }
+
+    uc.fs.StringVar(&uc.updateType, "t", "note", "Type of file to update. Options: [note, todo, list]")
+    uc.fs.StringVar(&uc.updateFile, "f", "default", "Name of file to update")
+
+    return uc
+}
 
 type Runner interface {
     Init([]string) error
@@ -131,6 +201,7 @@ func root(args []string) error {
     cmds := []Runner {
         NewWriteCommand(),
         NewReadCommand(),
+        NewUpdateCommand(),
     }
 
     subcommand := os.Args[1]
@@ -174,6 +245,97 @@ func createEnv() {
 	fmt.Println("Finish instantiating working environment...")
 }
 
+/*--------------------------- READ COMMAND METHODS -----------------------------*/
+
+// Read Note
+func readNoteFromFile(fileDir *string, fileName string) {
+    var fileLines []string
+
+    fmt.Printf("Reading a NOTE from path: %s\n", *fileDir)
+    filePath := filepath.Join(*fileDir, filepath.Base(NOTE_TAG+fileName+FILE_EXT_TEXT))
+
+    file, err := os.Open(filePath)
+    if err != nil {
+        log.Fatalf("Error opening the file to read: %v", err)
+    }
+    defer file.Close()
+    
+    scanner := bufio.NewScanner(file)
+    scanner.Split(bufio.ScanLines)
+    for scanner.Scan() {
+        fileLines = append(fileLines, scanner.Text())
+    }
+
+    if err := scanner.Err(); err != nil {
+        log.Fatalf("Error while scanning the file %v", err)
+    }
+    
+    fmt.Println("Printing the NOTE...")
+    for _, line := range fileLines {
+        fmt.Println(line)
+    }
+}
+
+// Read Todo
+func readTodoFromFile(fileDir *string, fileName string) {
+    var fileLines []string
+
+    fmt.Printf("Reading a TODO from path: %s\n", *fileDir)
+    filePath := filepath.Join(*fileDir, filepath.Base(TODO_TAG+fileName+FILE_EXT_TEXT))
+
+    file, err := os.Open(filePath)
+    if err != nil {
+        log.Fatalf("Error opening the file to read: %v", err)
+    }
+    defer file.Close()
+    
+    scanner := bufio.NewScanner(file)
+    scanner.Split(bufio.ScanLines)
+    for scanner.Scan() {
+        fileLines = append(fileLines, scanner.Text())
+    }
+
+    if err := scanner.Err(); err != nil {
+        log.Fatalf("Error while scanning the file %v", err)
+    }
+    
+    fmt.Println("Printing the TODO...")
+    for _, line := range fileLines {
+        fmt.Println(line)
+    }
+}
+
+func readListFromFile(fileDir *string, fileName string) {
+
+    var fileLines []string
+
+    fmt.Printf("Reading a LIST from path: %s\n", *fileDir)
+    filePath := filepath.Join(*fileDir, filepath.Base(LIST_TAG+fileName+FILE_EXT_TEXT))
+
+    file, err := os.Open(filePath)
+    if err != nil {
+        log.Fatalf("Error opening the file to read: %v", err)
+    }
+    defer file.Close()
+    
+    scanner := bufio.NewScanner(file)
+    scanner.Split(bufio.ScanLines)
+    for scanner.Scan() {
+        fileLines = append(fileLines, scanner.Text())
+    }
+
+    if err := scanner.Err(); err != nil {
+        log.Fatalf("Error while scanning the file %v", err)
+    }
+    
+    fmt.Println("Printing the LIST...")
+    for _, line := range fileLines {
+        fmt.Println(line)
+    }
+}
+
+/*--------------------------- WRITE COMMAND METHODS -----------------------------*/
+
 func writeListToFile(listsDir *string, fileName string) {
     var title   string
     var body    string
@@ -182,6 +344,11 @@ func writeListToFile(listsDir *string, fileName string) {
     filePath := filepath.Join(*listsDir, filepath.Base(LIST_TAG+fileName+FILE_EXT_TEXT))
     if _, err := os.Stat(filePath); os.IsNotExist(err) {
         file, err := os.Create(filepath.Join(*listsDir, filepath.Base(LIST_TAG+fileName+FILE_EXT_TEXT)))
+        if err != nil {
+            panic(err)
+        }
+        defer file.Close()
+        
         buffer := bufio.NewWriter(file)
         if _, err := buffer.WriteString(TITLE_TAG + ": "); err != nil {
             log.Fatalf(ERR_WRITE_MESSAGE, err)
@@ -213,10 +380,6 @@ func writeListToFile(listsDir *string, fileName string) {
         if err := buffer.Flush(); err != nil {
             log.Fatalf("Error while flushing buffer %v", err)
         }
-        if err != nil {
-            panic(err)
-        }
-        defer file.Close()
     } else {
         fmt.Printf("A LIST with the name %s already exists. Choose another name: \n", filePath)
         var newFileName string
@@ -224,7 +387,6 @@ func writeListToFile(listsDir *string, fileName string) {
         fmt.Printf("New file name: %s\n", newFileName)
         writeListToFile(listsDir, newFileName)
     }
-    // Todo: add choise to add elemnt to already created list
 }
 
 func writeTodoToFile(todosDir *string, fileName string) {
@@ -234,53 +396,63 @@ func writeTodoToFile(todosDir *string, fileName string) {
     var years   int
     var months  int
     var days    int
-
+    const DUE_DATE = "DUE_DATE"
+    
     currentTime := time.Now().Format(time.RFC3339)
 
     fmt.Printf("We are writing TODO to path: %s\n", *todosDir)
-    file, err := os.Create(filepath.Join(*todosDir, filepath.Base(TODO_TAG+fileName+FILE_EXT_TEXT)))
-    if err != nil {
-        panic(err)
-    }
-    defer file.Close()
+    filePath := filepath.Join(*todosDir, filepath.Base(TODO_TAG+fileName+FILE_EXT_TEXT))
+    if _, err := os.Stat(filePath); os.IsNotExist(err) {
+        file, err := os.Create(filePath)
+        if err != nil {
+            panic(err)
+        }
+        defer file.Close()
 
-    buffer := bufio.NewWriter(file)
-    if _, err := buffer.WriteString(TITLE_TAG + ": "); err != nil {
-        log.Fatalf(ERR_WRITE_MESSAGE, err)
+        buffer := bufio.NewWriter(file)
+        if _, err := buffer.WriteString(TITLE_TAG + ": "); err != nil {
+            log.Fatalf(ERR_WRITE_MESSAGE, err)
+        }
+        fmt.Println("Type the title:")
+        scanner := bufio.NewScanner(os.Stdin)
+        if scanner.Scan() {
+            title = scanner.Text()
+        }
+        if err := scanner.Err(); err != nil {
+            log.Fatalf("Error while scanning title %v", err)
+        }
+        if _, err := buffer.WriteString(title + "\n"); err != nil {
+            log.Fatalf(ERR_WRITE_MESSAGE, err)
+        }
+        fmt.Println("Now type the body of the TODO:")
+        if scanner.Scan() {
+            body = scanner.Text()
+        }
+        if err := scanner.Err(); err != nil {
+            log.Fatalf("Error while scanning the body %v", err)
+        }
+        if _, err := buffer.WriteString(body + "\n"); err != nil {
+            log.Fatalf(ERR_WRITE_MESSAGE, err)
+        }
+        fmt.Println("Now type in order years, months and days you need to complete the TODO")
+        fmt.Scanf("%d %d %d", &years, &months, &days)
+        t, _ := time.Parse(time.RFC3339, currentTime)
+        nt := t.AddDate(years, months, days)
+        dueDate = nt.Format(time.RFC3339)
+        
+        if _, err := buffer.WriteString(DUE_DATE + ": " + dueDate + "\n"); err != nil {
+            log.Fatalf(ERR_WRITE_MESSAGE, err)
+        }
+        if err := buffer.Flush(); err != nil {
+            log.Fatalf("Error while flushing buffer %v", err)
+        }
+    } else {
+        fmt.Printf("A TODO with the name %s already exists. Choose another name: \n", filePath)
+        var newFileName string
+        fmt.Scanf("%s", &newFileName)
+        fmt.Printf("New file name: %s\n", newFileName)
+        writeTodoToFile(todosDir, newFileName)
     }
-    fmt.Println("Type the title:")
-    scanner := bufio.NewScanner(os.Stdin)
-    if scanner.Scan() {
-        title = scanner.Text()
-    }
-    if err := scanner.Err(); err != nil {
-        log.Fatalf("Error while scanning title %v", err)
-    }
-    if _, err := buffer.WriteString(title + "\n"); err != nil {
-        log.Fatalf(ERR_WRITE_MESSAGE, err)
-    }
-    fmt.Println("Now type the body of the TODO:")
-    if scanner.Scan() {
-        body = scanner.Text()
-    }
-    if err := scanner.Err(); err != nil {
-        log.Fatalf("Error while scanning the body %v", err)
-    }
-    if _, err := buffer.WriteString(body + "\n"); err != nil {
-        log.Fatalf(ERR_WRITE_MESSAGE, err)
-    }
-    fmt.Println("Now type in order years, months and days you need to complete the TODO")
-    fmt.Scanf("%d %d %d", &years, &months, &days)
-    t, _ := time.Parse(time.RFC3339, currentTime)
-    nt := t.AddDate(years, months, days)
-    dueDate = nt.Format(time.RFC3339)
-    if _, err := buffer.WriteString(dueDate + "\n"); err != nil {
-        log.Fatalf(ERR_WRITE_MESSAGE, err)
-    }
-    if err := buffer.Flush(); err != nil {
-        log.Fatalf("Error while flushing buffer %v", err)
-    }
-
 }
 
 func writeNoteToFile(notesDir *string, fileName string) {
@@ -289,39 +461,180 @@ func writeNoteToFile(notesDir *string, fileName string) {
 	var body string
 
     fmt.Printf("We are writing NOTE to path: %s\n", *notesDir)
-	file, err := os.Create(filepath.Join(*notesDir, filepath.Base(NOTE_TAG+fileName+FILE_EXT_TEXT)))
+    filePath := filepath.Join(*notesDir, filepath.Base(NOTE_TAG+fileName+FILE_EXT_TEXT))
+    if _, err := os.Stat(filePath); os.IsNotExist(err) {
+
+        file, err := os.Create(filePath)
+        if err != nil {
+		    panic(err)
+	    }
+	    defer file.Close()
+	
+        buffer := bufio.NewWriter(file)
+        if _, err := buffer.WriteString(TITLE_TAG + ": "); err != nil {
+            log.Fatalf(ERR_WRITE_MESSAGE, err)
+        }
+        scanner := bufio.NewScanner(os.Stdin)
+        fmt.Println("Type the title of the NOTE:")
+        if scanner.Scan() {
+            title = scanner.Text()
+        }
+        if err := scanner.Err(); err != nil {
+            log.Fatalf("Error while scanning title %v", err)
+        }
+        if _, err := buffer.WriteString(title + "\n"); err != nil {
+            log.Fatalf(ERR_WRITE_MESSAGE, err)
+        }
+        fmt.Println("Now type the body of the NOTE:")
+        if scanner.Scan() {
+            body = scanner.Text()
+        }
+        if err := scanner.Err(); err != nil {
+            log.Fatalf("Error while scanning the body %v", err)
+        }
+        if _, err := buffer.WriteString(body + "\n"); err != nil {
+            log.Fatalf(ERR_WRITE_MESSAGE, err)
+        }
+        if err := buffer.Flush(); err != nil {
+            log.Fatalf("Error while flushing buffer %v", err)
+        }
+    } else {
+        fmt.Printf("A NOTE with the name %s already exists. Choose another name: \n", filePath)
+        var newFileName string
+        fmt.Scanf("%s", &newFileName)
+        fmt.Printf("New file name: %s\n", newFileName)
+        writeNoteToFile(notesDir, newFileName)
+    }
+}
+
+/*--------------------------- UPDATE COMMAND METHODS -----------------------------*/
+
+func updateNoteInFile(fileDir *string, fileName string) {
+    
+    var newData string
+    var continueChoice string
+
+    filePath := filepath.Join(*fileDir, filepath.Base(NOTE_TAG+fileName+FILE_EXT_TEXT))
+    // If the file exists append to the file
+	file, err := os.OpenFile(filePath, os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
 		panic(err)
 	}
-	defer file.Close()
-	
-    buffer := bufio.NewWriter(file)
-    if _, err := buffer.WriteString(TITLE_TAG + ": "); err != nil {
-        log.Fatalf(ERR_WRITE_MESSAGE, err)
-    }
+
+    fmt.Printf("Append data to the file %s\n", filePath)
     scanner := bufio.NewScanner(os.Stdin)
-    fmt.Println("Type the title of the NOTE:")
     if scanner.Scan() {
-        title = scanner.Text()
+        newData = scanner.Text()
     }
     if err := scanner.Err(); err != nil {
-        log.Fatalf("Error while scanning title %v", err)
+        log.Fatalf("Error while scanning new data %v", err)
     }
-    if _, err := buffer.WriteString(title + "\n"); err != nil {
-        log.Fatalf(ERR_WRITE_MESSAGE, err)
+    if _, err := file.Write([]byte(newData + "\n")); err != nil {
+        file.Close()
+        log.Fatalf("Error while appending data to file %v", err)
     }
-    fmt.Println("Now type the body of the NOTE:")
+    if err := file.Close(); err != nil {
+        log.Fatalf("Error while closing the file %v", err)
+    }
+    fmt.Print("Do you need to append other data? [y/N]: ")
+    fmt.Scanf("%s", &continueChoice)
+    for {
+        if continueChoice == "y" {
+            updateNoteInFile(fileDir, fileName)
+            break
+        } else if continueChoice == "N" {
+            break
+        } else {
+            fmt.Print("Option not valid. Use y or N only. Re-enter your choice [y/N]: ")
+            fmt.Scanf("%s", &continueChoice)
+        }
+    }
+}
+
+func updateTodoInFile(fileDir *string, fileName string) {
+    
+    var newData string
+    var continueChoice string
+
+    filePath := filepath.Join(*fileDir, filepath.Base(TODO_TAG+fileName+FILE_EXT_TEXT))
+    // If the file exists append to the file
+	file, err := os.OpenFile(filePath, os.O_APPEND|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Fatalf("Error opening the file %v", err)
+	}
+
+    fmt.Printf("Append data to the file %s\n", filePath)
+    scanner := bufio.NewScanner(os.Stdin)
     if scanner.Scan() {
-        body = scanner.Text()
+        newData = scanner.Text()
     }
     if err := scanner.Err(); err != nil {
-        log.Fatalf("Error while scanning the body %v", err)
+        log.Fatalf("Error while scanning new data %v", err)
     }
-    if _, err := buffer.WriteString(body + "\n"); err != nil {
-        log.Fatalf(ERR_WRITE_MESSAGE, err)
+    if _, err := file.Write([]byte(newData + "\n")); err != nil {
+        file.Close()
+        log.Fatalf("Error while appending data to file %v", err)
     }
-    if err := buffer.Flush(); err != nil {
-        log.Fatalf("Error while flushing buffer %v", err)
+    if err := file.Close(); err != nil {
+        log.Fatalf("Error while closing the file %v", err)
+    }
+    fmt.Print("Do you need to append other data? [y/N]: ")
+    fmt.Scanf("%s", &continueChoice)
+    for {
+        if continueChoice == "y" {
+            updateTodoInFile(fileDir, fileName)
+            break
+        } else if continueChoice == "N" {
+            break
+        } else {
+            fmt.Print("Option not valid. Use y or N only. Re-enter your choice [y/N]: ")
+            fmt.Scanf("%s", &continueChoice)
+        }
+    }
+}
+
+func updateListInFile(fileDir *string, fileName string) {
+
+    var newData string
+    var continueChoice string
+
+    filePath := filepath.Join(*fileDir, filepath.Base(LIST_TAG+fileName+FILE_EXT_TEXT))
+    // If the file exists append to the file
+	file, err := os.OpenFile(filePath, os.O_APPEND|os.O_WRONLY, 0644)
+	if err != nil {
+		panic(err)
+	}
+
+    fmt.Printf("Append new element to the list separating them with a %c\n", ',')
+    scanner := bufio.NewScanner(os.Stdin)
+    if scanner.Scan() {
+        newData = scanner.Text()
+    }
+    if err := scanner.Err(); err != nil {
+        log.Fatalf("Error while scanning new data %v", err)
+    }
+    listEl := strings.Split(newData, ",")
+    for _, el := range listEl {
+        if _, err := file.Write([]byte(el + "\n")); err != nil {
+            file.Close()
+            log.Fatalf("Error while appending data to file %v", err)
+        }
+    }
+    if err := file.Close(); err != nil {
+        log.Fatalf("Error while closing the file %v", err)
+    }
+    fmt.Print("Do you need to append other data? [y/N]: ")
+    fmt.Scanf("%s", &continueChoice)
+    for {
+        if continueChoice == "y" {
+            updateListInFile(fileDir, fileName)
+            break
+        } else if continueChoice == "N" {
+            break
+        } else {
+            fmt.Print("Option not valid. Use y or N only. Re-enter your choice [y/N]: ")
+            fmt.Scanf("%s", &continueChoice)
+        }
     }
 }
 
@@ -330,14 +643,4 @@ func main() {
         fmt.Println(err)
         os.Exit(1)
     }
-    
-//	createEnv()
-//    switch os.Args[1] {
-//    case "write":
-//        writeCommand.Parse(os.Args[2:])    
-//    case "read":
-//        readCommand.Parse(os.Args[2:])
-//    default:
-//        fmt.Printf("%q is not a valid command.\n", os.Args[1])
-//    }
 }
